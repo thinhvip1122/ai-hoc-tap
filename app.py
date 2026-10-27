@@ -11,10 +11,10 @@ st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu tr�
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI ở thanh bên (Đã sửa danh sách Model ID chuẩn của Groq)
+# 2. Cấu hình mô hình AI ở thanh bên (Đã cập nhật Model ID mới nhất của Groq)
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI:", 
-    ["llama3-70b-8192", "mixtral-8x7b-32768", "llama3-8b-8192"]
+    ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 )
 
 # Lấy API Key an toàn từ mục Secrets của Streamlit
@@ -108,7 +108,7 @@ if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắ
             with st.spinner("🚀 AI Trọng Tài đang tổng hợp câu trả lời..."):
                 
                 # Ép chỉ thị hiểu từ viết tắt tiếng Việt rất chặt chẽ vào cấu trúc prompt hệ thống
-                fix_slang_prompt = " LƯU Ý BẮT BUỘC: Bạn phải hiểu các từ viết tắt, teencode thông dụng của học sinh Việt Nam. Ví dụ: 'j' hoặc 'gjm' nghĩa là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi', 'môn j' nghĩa là 'môn gì'. Hãy dịch câu chữ viết tắt của họ sang nghĩa đúng trước khi xử lý toán học hoặc lý luận học thuật."
+                fix_slang_prompt = " LƯU Ý BẮT BUỘC: Bạn phải hiểu các từ viết tắt, teencode thông dụng của học sinh Việt Nam. Ví dụ: 'j' nghĩa là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi', 'môn j' nghĩa là 'môn gì'. Hãy dịch câu chữ viết tắt của họ sang nghĩa đúng trước khi lý luận học thuật."
                 
                 prompts = {
                     "AI_1": "Bạn là một học giả uyên bác. Hãy trả lời câu hỏi học tập của người dùng một cách chính xác tuyệt đối, khoa học và ngắn gọn." + fix_slang_prompt,
