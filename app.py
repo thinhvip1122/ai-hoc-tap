@@ -5,16 +5,16 @@ from groq import Groq
 # 1. Cấu hình giao diện ứng dụng Web nâng cao
 st.set_page_config(page_title="Hội Đồng AI Học Tập Tối Cao", layout="wide", page_icon="🏛️")
 st.title("🏛️ HỘI ĐỒNG AI HỌC TẬP - 10 AGENT SONG SONG")
-st.write("Hệ thống kết hợp sức mạnh lý luận của 10 AI Agent chuyên biệt giúp kiểm tra chéo và chống ảo giác tuyệt đối.")
+st.write("Hệ thống kết hợp sức mạnh lý luận của 10 AI Agent chuyên biệt theo chuẩn Groq mới nhất.")
 
 # Khởi tạo bộ nhớ lịch sử cuộc trò chuyện
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI hiệu năng cao nhất hiện tại của Groq
+# 2. Cấu hình mô hình AI - CẬP NHẬT CHUẨN THEO TÀI LIỆU CỦA GROQ
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI nền tảng:", 
-    ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b"]
 )
 
 # Quản lý API Key bảo mật
@@ -46,7 +46,7 @@ def call_groq_agent(system_prompt, user_query, agent_id):
                 {"role": "user", "content": str(user_query)}
             ],
             model=MODEL_NAME,
-            temperature=0.15  # Giữ độ chính xác học thuật cao
+            temperature=0.15
         )
         res_text = chat_completion.choices[0].message.content
         return {"id": agent_id, "content": str(res_text)}
@@ -100,17 +100,14 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
         st.error("Hệ thống chưa được cấu hình API Key.")
     else:
         with st.chat_message("assistant"):
-            # Sử dụng hiệu ứng tiến trình động trực quan
             progress_bar = st.progress(0)
             status_text = st.empty()
             
             status_text.text("⚙️ Hội đồng 10 AI đang phân tích dữ liệu song song...")
             progress_bar.progress(20)
             
-            # Định nghĩa bộ chỉ thị từ viết tắt chung cho hội đồng
             fix_slang_prompt = " Phải hiểu các từ viết tắt, teencode tiếng Việt (ko=không, j=gì, dc=được, tui=tôi, mn=mọi người, môn j=môn gì)."
 
-            # Định nghĩa vai trò chuyên biệt cho 10 AI Agent khác nhau
             agents_config = {
                 "Agent_1": "Bạn là Học giả Uyên bác. Trả lời chính xác tuyệt đối, khoa học và ngắn gọn khái niệm cốt lõi." + fix_slang_prompt,
                 "Agent_2": "Bạn là Gia sư Sư phạm. Bẻ nhỏ bài toán thành các bước giải logic, dễ tiếp thu nhất." + fix_slang_prompt,
@@ -127,7 +124,6 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
             raw_results = {}
             progress_bar.progress(50)
             
-            # Kích hoạt Pool xử lý đồng thời tối đa 10 luồng (max_workers=10)
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(call_groq_agent, prompt, user_query, key) for key, prompt in agents_config.items()]
                 for future in concurrent.futures.as_completed(futures):
@@ -137,18 +133,16 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
             progress_bar.progress(80)
             status_text.text("⚖️ Đang trình báo lên AI Trọng tài tổng hợp kết quả tối ưu...")
             
-            # Cấu trúc văn bản báo cáo từ 10 phía
             data_gom = f"Câu hỏi gốc: {user_query}\n"
             for k in agents_config.keys():
                 data_gom += f"[{k}]: {raw_results.get(k, 'Lỗi kết nối.')}\n"
             
-            # Khối prompt tối cao dành cho AI Trọng tài
             prompt_trong_tai = """
             Bạn là Giảng viên Đại học Ưu tú - Trọng tài tối cao của hội đồng học thuật.
-            Nhiệm vụ của bạn là kết hợp tất cả các góc nhìn tinh túy nhất từ 10 AI Agent cấp dưới (Định nghĩa từ Học giả, Các bước giải từ Gia sư, Ứng dụng từ Thực nghiệm, Phản biện từ Nhà biện chứng, Sơ đồ từ Trợ lý cấu trúc...) để tạo ra một câu trả lời hoàn hảo, toàn diện và sâu sắc nhất cho học sinh.
+            Nhiệm vụ của bạn là kết hợp tất cả các góc nhìn tinh túy nhất từ 10 AI Agent cấp dưới để tạo ra một câu trả lời hoàn hảo, toàn diện và sâu sắc nhất cho học sinh.
             
             Quy tắc nghiêm ngặt:
-            1. Trình bày bài học liền mạch bằng Markdown. Tuyệt đối không nhận xét kiểu "Agent 1 nói thế này, Agent 2 nói thế kia".
+            1. Trình bày bài học liền mạch bằng Markdown. Tuyệt đối không nhận xét kiểu "Agent 1 nói thế này...".
             2. Trả lời bám sát câu hỏi người dùng, liên kết mạch lạc với ngữ cảnh lịch sử trò chuyện.
             3. QUY ĐỊNH CÔNG THỨC: Bắt buộc bọc toán học/vật lý/hóa học bằng dấu $ (cùng dòng) hoặc $$ (xuống dòng).
             """ + fix_slang_prompt
@@ -156,14 +150,11 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
             ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_gom, st.session_state.chat_history)
             ket_qua_sach = fix_latex_format(ket_qua_cuoi)
             
-            # Xóa các thanh trạng thái sau khi hoàn thành để giao diện sạch sẽ
             progress_bar.empty()
             status_text.empty()
             
-            # 5. Hiển thị kết quả ra màn hình bằng cấu trúc phân tầng
             st.markdown(ket_qua_sach)
             
-            # Tích hợp thêm hộp chứa (Expander) bí mật giúp bạn soi chi tiết góc nhìn của 10 Agent nếu muốn
             with st.expander("🔬 Xem chi tiết báo cáo thô từ Hội đồng 10 AI Agent"):
                 tab_titles = [
                     "1. Học giả", "2. Gia sư", "3. Thực nghiệm", "4. Toán học", "5. Ngôn ngữ", 
@@ -175,5 +166,4 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
                         st.info(f"Góc nhìn chuyên sâu từ {tab_titles[index]}:")
                         st.write(raw_results.get(key))
             
-            # Ghi nhớ phiên làm việc vào lịch sử cuộc trò chuyện
             st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
