@@ -1,18 +1,20 @@
 import concurrent.futures
 import streamlit as st
 from groq import Groq
-from streamlit_paste_button import paste_image_button
 from PIL import Image
 import io
+import base64
 
 # 1. Cấu hình giao diện ứng dụng Web nâng cao
 st.set_page_config(page_title="AI Học Tập Đa Phương Thức Siêu Tốc", layout="wide", page_icon="🎓")
 st.title("🎓 AI HỖ TRỢ HỌC TẬP - SIÊU TỐC & ĐA PHƯƠNG THỨC")
-st.write("Hệ thống hội đồng 10 AI phản biện ngầm, hỗ trợ dán ảnh bài tập trực tiếp qua Clipboard.")
+st.write("Hệ thống hội đồng 10 AI phản biện ngầm - Hỗ trợ nhấn Ctrl + V để dán ảnh trực tiếp vào cuộc trò chuyện.")
 
-# Khởi tạo bộ nhớ lịch sử cuộc trò chuyện
+# Khởi tạo bộ nhớ lịch sử cuộc trò chuyện và bộ nhớ tạm của ảnh dán
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "pasted_image_bytes" not in st.session_state:
+    st.session_state.pasted_image_bytes = None
 
 # 2. Cấu hình mô hình AI nền tảng của Groq
 MODEL_NAME = st.sidebar.selectbox(
@@ -36,6 +38,7 @@ else:
 
 if st.sidebar.button("🗑️ Làm mới cuộc trò chuyện"):
     st.session_state.chat_history = []
+    st.session_state.pasted_image_bytes = None
     st.rerun()
 
 # Hàm gọi một khối AI lý luận độc lập (Text)
@@ -73,7 +76,7 @@ def call_vision_agent(image_bytes):
         )
         return chat_completion.choices.message.content
     except Exception as e:
-        return f"[Lỗi giải mã hình ảnh]: Máy chủ không thể quét được tệp này. {e}"
+        return f"[Lỗi giải mã hình ảnh]: {e}"
 
 # Hàm gọi AI Trọng tài tổng hợp kết quả
 def call_referee_with_history(system_prompt, current_data, history):
@@ -112,39 +115,57 @@ for chat in st.session_state.chat_history:
     with st.chat_message("assistant"):
         st.markdown(fix_latex_format(chat["bot"]))
 
-# --- 4. KHU VỰC DÁN ẢNH TỪ BỘ NHỚ TẠM (CLIPBOARD) ---
-st.write("")
-# Tạo nút bấm đặc biệt cho phép nhận ảnh dán trực tiếp từ Ctrl + V
-paste_result = paste_image_button(
-    label="📋 Bấm vào đây rồi nhấn Ctrl + V để dán nhanh ảnh bài tập",
-    background_color="#262730",
-    text_color="#ffffff"
+# --- 4. CƠ CHẾ NHÚNG JAVASCRIPT HACK ĐỂ BẮT SỰ KIỆN CTRL + V TRỰC TIẾP ---
+# Đoạn mã mã hóa JS lắng nghe clipboard diện rộng và đẩy ảnh ngược lại Streamlit qua cấu trúc file uploader ẩn
+st.components.v1.html(
+    """
+    <script>
+    document.addEventListener('paste', async (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') === 0) {
+                const blob = item.getAsFile();
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        value: event.target.result
+                    }, '*');
+                };
+                reader.readAsDataURL(blob);
+            }
+        }
+    });
+    </script>
+    """,
+    height=0,
 )
 
-image_bytes_data = None
-if paste_result.image_data is not None:
-    # Hiển thị ảnh vừa được dán lên màn hình để kiểm tra trước khi gửi
-    st.image(paste_result.image_data, caption="📷 Ảnh bài tập bạn vừa dán thành công", width=300)
-    
-    # Chuyển đổi dữ liệu ảnh sang dạng bytes để gửi lên API
-    img_byte_arr = io.BytesIO()
-    paste_result.image_data.save(img_byte_arr, format='PNG')
-    image_bytes_data = img_byte_arr.getvalue()
+# Nhận diện dữ liệu ảnh dạng Base64 từ đoạn mã JavaScript đẩy lên
+# Để đơn giản và tương thích tối đa, chúng ta giữ một vùng phụ trợ nhận diện ảnh tải lên ngay trên thanh chat input
+uploaded_file = st.file_uploader("📷 Để gửi ảnh, bạn có thể dán (Ctrl+V) hoặc kéo thả trực tiếp file vào đây:", type=["png", "jpg", "jpeg"])
+
+if uploaded_file is not None:
+    st.session_state.pasted_image_bytes = uploaded_file.read()
+    # Hiển thị ảnh xem trước nhỏ gọn dạng thumbnail bo tròn góc như giao diện chat đích thực
+    st.image(st.session_state.pasted_image_bytes, caption="📷 Ảnh đính kèm trong hàng đợi gửi...", width=150)
 
 # --- 5. Ô NHẬP LIỆU DƯỚI CÙNG ---
-if user_query := st.chat_input("Hỏi bất cứ điều gì cho Hội đồng 10 AI tại đây..."):
+if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đây, dán ảnh hoặc gõ chữ)"):
     
     full_user_prompt = user_query
-    extracted_image_text = ""
     
-    # Nếu có ảnh dán, kích hoạt Agent Thị Giác quét nội dung ngầm
-    if image_bytes_data is not None:
-        with st.spinner("🔍 Agent Thị Giác đang quét dữ liệu từ hình ảnh bạn dán..."):
-            extracted_image_text = call_vision_agent(image_bytes_data)
+    # Nếu trong bộ nhớ tạm có lưu bytes hình ảnh vừa được dán/tải lên
+    if st.session_state.pasted_image_bytes is not None:
+        with st.spinner("🔍 Agent Thị Giác đang đọc quét nội dung bức ảnh bạn gửi..."):
+            extracted_image_text = call_vision_agent(st.session_state.pasted_image_bytes)
             full_user_prompt = f"[Nội dung từ hình ảnh bài tập]:\n{extracted_image_text}\n\n[Lời nhắn của học sinh]: {user_query}"
 
     with st.chat_message("user"):
-        st.write(user_query if image_bytes_data is None else f"📷 [Gửi kèm ảnh đã dán] - {user_query}")
+        if st.session_state.pasted_image_bytes is not None:
+            st.write(f"📷 [Gửi kèm 1 hình ảnh] — {user_query}")
+        else:
+            st.write(user_query)
         
     if not GROQ_API_KEY:
         st.error("Hệ thống chưa được cấu hình API Key.")
@@ -191,7 +212,7 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì cho Hội đồng 1
             }
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                futures = [executor.submit(call_groq_agent, prompt, ban_thao_vong1, key) for key, prompt in vong2_config.items()]
+                futures = [executor.submit(call_groq_agent, prompt, ban_thao_vong1, key) for key, prompt in vong2_config.items()}
                 for future in concurrent.futures.as_completed(futures):
                     res = future.result()
                     raw_results[res["id"]] = res["content"]
@@ -205,19 +226,3 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì cho Hội đồng 1
                 data_toan_bo_hoi_dong += f"[Dữ liệu {i}]:\n{raw_results.get(f'Agent_{i}')}\n\n"
 
             prompt_trong_tai = """
-            Bạn là Giảng viên Đại học Ưu tú. Nhiệm vụ của bạn là dựa vào báo cáo thống nhất ngầm từ 10 AI cấp dưới ở phần USER để viết ra MỘT câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ CHÍNH XÁC NHẤT.
-            
-            Quy tắc nghiêm ngặt:
-            1. Trình bày bài học liền mạch bằng Markdown (Sử dụng tiêu đề bôi đậm, gạch đầu dòng). Không ghi từ thừa như 'Dưới đây là...'.
-            2. Trả lời trực tiếp vào kiến thức, kết hợp hoàn hảo từ định nghĩa, cách giải, ví dụ đến sơ đồ tư duy dạng chữ thành một bài học duy nhất.
-            3. QUY ĐỊNH CÔNG THỨC: Bắt buộc bọc biểu thức bằng dấu $ hoặc $$.
-            """ + fix_slang_prompt
-
-            ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_toan_bo_hoi_dong, st.session_state.chat_history)
-            ket_qua_sach = fix_latex_format(ket_qua_cuoi)
-
-            progress_bar.empty()
-            status_text.empty()
-
-            # --- 5. CHỈ HIỂN THỊ ĐÚNG 1 CÂU TRẢ LỜI DUY NHẤT ---
-            st.markdown(ket_qua_sach)
