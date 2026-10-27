@@ -11,7 +11,7 @@ st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu tr�
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI ở thanh bên (Đã cập nhật Model ID mới nhất của Groq)
+# 2. Cấu hình mô hình AI ở thanh bên (Danh sách Model ID chuẩn nhất hiện nay của Groq)
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI:", 
     ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
