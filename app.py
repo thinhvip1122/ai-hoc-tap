@@ -168,9 +168,9 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
     else:
         with st.chat_message("assistant"):
             progress_bar = st.progress(0)
-            status_text = st.empty()
+            st_status = st.empty()
             
-            status_text.text("⚡ Hội đồng 10 AI đang phản biện và thống nhất kết quả...")
+            st_status.text("⚡ Hội đồng 10 AI đang phản biện và thống nhất kết quả...")
             progress_bar.progress(35)
             
             fix_slang_prompt = " Hiểu các từ viết tắt tiếng Việt (ko=không, j=gì, dc=được, tui=tôi, môn j=môn gì)."
@@ -208,21 +208,17 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
             }
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                # ĐÃ SỬA: Đóng ngoặc ] chính xác cho cú pháp Python dưới đây
                 futures = [executor.submit(call_groq_agent, prompt, ban_thao_vong1, key) for key, prompt in vong2_config.items()]
                 for future in concurrent.futures.as_completed(futures):
                     res = future.result()
                     raw_results[res["id"]] = res["content"]
 
             # --- VÒNG 3: TRỌNG TÀI TỔNG HỢP SIÊU TỐC ---
-            status_text.text("🏛️ Đang xuất kết quả đồng thuận cuối cùng...")
+            st_status.text("🏛️ Đang xuất kết quả đồng thuận cuối cùng...")
             progress_bar.progress(90)
 
             data_toan_bo_hoi_dong = f"Câu hỏi: {full_user_prompt}\n\n"
             for i in range(1, 11):
                 data_toan_bo_hoi_dong += f"[Dữ liệu {i}]:\n{raw_results.get(f'Agent_{i}')}\n\n"
 
-            prompt_trong_tai = """
-            Bạn là Giảng viên Đại học Ưu tú. Nhiệm vụ của bạn là dựa vào báo cáo thống nhất ngầm từ 10 AI cấp dưới ở phần USER để viết ra MỘT câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ CHÍNH XÁC NHẤT.
-            
-            Quy tắc nghiêm ngặt:
+            # ĐÃ SỬA: Gom chuỗi trên một dòng để triệt tiêu lỗi markdown cắt chuỗi
