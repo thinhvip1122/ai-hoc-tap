@@ -40,7 +40,7 @@ if st.sidebar.button("🗑️ Làm mới cuộc trò chuyện"):
     st.session_state.pasted_image_bytes = None
     st.rerun()
 
-# Hàm gọi một khối AI lý luận độc lập (Tối ưu hóa tốc độ với temperature=0.0)
+# Hàm gọi một khối AI lý luận độc lập
 def call_groq_agent(system_prompt, user_query, agent_id):
     if not GROQ_API_KEY:
         return {"id": agent_id, "content": "Chưa có API Key."}
@@ -58,7 +58,7 @@ def call_groq_agent(system_prompt, user_query, agent_id):
     except Exception as e:
         return {"id": agent_id, "content": f"Lỗi từ Agent: {e}"}
 
-# Hàm Agent Thị Giác phân tích hình ảnh (Dùng Model Qwen chuyên xử lý ảnh)
+# Hàm Agent Thị Giác phân tích hình ảnh
 def call_vision_agent(image_bytes):
     if not GROQ_API_KEY:
         return "Chưa có API Key."
@@ -77,7 +77,7 @@ def call_vision_agent(image_bytes):
     except Exception as e:
         return f"[Lỗi giải mã hình ảnh]: {e}"
 
-# Hàm gọi AI Trọng tài tổng hợp kết quả (Hạ nhiệt độ xuống 0.0 để chốt chữ nhanh nhất)
+# Hàm gọi AI Trọng tài tổng hợp kết quả
 def call_referee_with_history(system_prompt, current_data, history):
     if not GROQ_API_KEY:
         return "Chưa có API Key."
@@ -114,8 +114,8 @@ for chat in st.session_state.chat_history:
     with st.chat_message("assistant"):
         st.markdown(fix_latex_format(chat["bot"]))
 
-# --- 4. CƠ CHẾ NHÚNG JAVASCRIPT HACK ĐỂ BẮT SỰ KIỆN CTRL + V TRỰC TIẾP ---
-st.components.v1.html(
+# --- 4. ĐÃ CẬP NHẬT: THAY THẾ SANG ST.HTML THEO CHUẨN MỚI ĐỂ XÓA SẠCH CẢNH BÁO ---
+st.html(
     """
     <script>
     document.addEventListener('paste', async (e) => {
@@ -135,8 +135,7 @@ st.components.v1.html(
         }
     });
     </script>
-    """,
-    height=0,
+    """
 )
 
 # Khu vực hỗ trợ kéo thả ảnh hoặc dán qua Clipboard tự động nhận diện
@@ -176,7 +175,6 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
             
             raw_results = {}
 
-            # Tối ưu hóa: Gom tất cả 5 Agent cốt lõi chạy song song 1 vòng duy nhất để triệt tiêu độ trễ mạng
             agents_config = {
                 "Agent_1": "Bạn là Học giả Uyên bác. Đưa ra định nghĩa chính xác, khoa học và ngắn gọn nhất." + fix_slang_prompt,
                 "Agent_2": "Bạn là Gia sư Sư phạm. Đưa ra các bước giải logic ngắn gọn." + fix_slang_prompt,
@@ -208,7 +206,6 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
 
             st.markdown(ket_qua_sach)
 
-            # Lưu vào bộ nhớ lịch sử cuộc trò chuyện và làm sạch hàng đợi ảnh
             st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
             st.session_state.pasted_image_bytes = None
             st.rerun()
