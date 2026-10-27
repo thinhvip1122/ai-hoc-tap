@@ -108,6 +108,20 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
             
             fix_slang_prompt = " Phải hiểu các từ viết tắt, teencode tiếng Việt (ko=không, j=gì, dc=được, tui=tôi, mn=mọi người, môn j=môn gì)."
 
+            # Tên đại diện hiển thị của từng Agent
+            agent_names = {
+                "Agent_1": "1. 🎓 Học giả Uyên bác",
+                "Agent_2": "2. 🏫 Gia sư Sư phạm",
+                "Agent_3": "3. 🔬 Nhà Khoa học Thực nghiệm",
+                "Agent_4": "4. 📐 Chuyên gia Toán học & Logic",
+                "Agent_5": "5. 🌐 Chuyên gia Ngôn ngữ",
+                "Agent_6": "6. ⚖️ Nhà Phê bình Biện chứng",
+                "Agent_7": "7. 📚 Biên tập viên Sách GK",
+                "Agent_8": "8. 📝 Chuyên gia Tóm tắt Siêu tốc",
+                "Agent_9": "9. 💡 Nhà Sáng tạo Minh họa",
+                "Agent_10": "10. 🗺️ Trợ lý Sơ đồ Tư duy"
+            }
+
             agents_config = {
                 "Agent_1": "Bạn là Học giả Uyên bác. Trả lời chính xác tuyệt đối, khoa học và ngắn gọn khái niệm cốt lõi." + fix_slang_prompt,
                 "Agent_2": "Bạn là Gia sư Sư phạm. Bẻ nhỏ bài toán thành các bước giải logic, dễ tiếp thu nhất." + fix_slang_prompt,
@@ -153,17 +167,17 @@ if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đ�
             progress_bar.empty()
             status_text.empty()
             
+            # --- 5. HIỂN THỊ ĐỒNG THỜI CẢ HỘI ĐỒNG RA MÀN HÌNH CHAT ---
+            # Đầu tiên: In bài tổng hợp của Trọng tài lên đầu
+            st.markdown("### 🏛️ KẾT LUẬN TỪ AI TRỌNG TÀI TỔNG HỢP:")
             st.markdown(ket_qua_sach)
             
-            with st.expander("🔬 Xem chi tiết báo cáo thô từ Hội đồng 10 AI Agent"):
-                tab_titles = [
-                    "1. Học giả", "2. Gia sư", "3. Thực nghiệm", "4. Toán học", "5. Ngôn ngữ", 
-                    "6. Phản biện", "7. Sách GK", "8. Tóm tắt", "9. Minh họa", "10. Sơ đồ"
-                ]
-                tabs = st.tabs(tab_titles)
-                for index, key in enumerate(agents_config.keys()):
-                    with tabs[index]:
-                        st.info(f"Góc nhìn chuyên sâu từ {tab_titles[index]}:")
-                        st.write(raw_results.get(key))
+            st.write("---")
+            st.markdown("### 🔬 Ý KIẾN CHI TIẾT TỪ 10 AI THÀNH VIÊN TRONG HỘI ĐỒNG:")
+            
+            # Tiếp theo: Duyệt qua 10 Agent và in trực tiếp ra màn hình dạng text
+            for key, display_name in agent_names.items():
+                st.markdown(f"#### {display_name}")
+                st.write(raw_results.get(key, "Không có phản hồi."))
             
             st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
