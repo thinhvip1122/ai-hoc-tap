@@ -1,13 +1,14 @@
 import concurrent.futures
 import streamlit as st
 from groq import Groq
+from streamlit_paste_button import paste_image_button
 from PIL import Image
 import io
 
 # 1. Cấu hình giao diện ứng dụng Web nâng cao
 st.set_page_config(page_title="AI Học Tập Đa Phương Thức Siêu Tốc", layout="wide", page_icon="🎓")
-st.title("🎓 AI HỖ TRỢ HỌC TẬP - ĐA PHƯƠNG THỨC & ĐỒNG THUẬN")
-st.write("Hệ thống hội đồng 10 AI phản biện ngầm, hỗ trợ quét hình ảnh/đề bài qua nút bấm đa phương thức.")
+st.title("🎓 AI HỖ TRỢ HỌC TẬP - SIÊU TỐC & ĐA PHƯƠNG THỨC")
+st.write("Hệ thống hội đồng 10 AI phản biện ngầm, hỗ trợ dán ảnh bài tập trực tiếp qua Clipboard.")
 
 # Khởi tạo bộ nhớ lịch sử cuộc trò chuyện
 if "chat_history" not in st.session_state:
@@ -16,7 +17,7 @@ if "chat_history" not in st.session_state:
 # 2. Cấu hình mô hình AI nền tảng của Groq
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI nền tảng:", 
-    ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b"]
+    ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"]
 )
 
 # Quản lý API Key bảo mật
@@ -60,7 +61,6 @@ def call_vision_agent(image_bytes):
     if not GROQ_API_KEY:
         return "Chưa có API Key."
     try:
-        # Chuyển đổi dữ liệu ảnh sang định dạng text mô tả chi tiết bằng Qwen Vision
         chat_completion = client.chat.completions.create(
             messages=[
                 {
@@ -112,32 +112,39 @@ for chat in st.session_state.chat_history:
     with st.chat_message("assistant"):
         st.markdown(fix_latex_format(chat["bot"]))
 
-# --- 4. KHU VỰC ĐA PHƯƠNG THỨC (NÚT DẤU CỘNG GHÉP ẢNH) ---
-# Thiết kế một khu vực tải file trực quan mô phỏng dấu cộng sát vùng chat
+# --- 4. KHU VỰC DÁN ẢNH TỪ BỘ NHỚ TẠM (CLIPBOARD) ---
 st.write("")
-uploaded_file = st.file_uploader("➕ Ghép hình ảnh bài tập tại đây (PNG, JPG, JPEG):", type=["png", "jpg", "jpeg"], label_visibility="visible")
+# Tạo nút bấm đặc biệt cho phép nhận ảnh dán trực tiếp từ Ctrl + V
+paste_result = paste_image_button(
+    label="📋 Bấm vào đây rồi nhấn Ctrl + V để dán nhanh ảnh bài tập",
+    background_color="#262730",
+    text_color="#ffffff"
+)
 
-if uploaded_file is not None:
-    # Hiển thị ảnh xem trước nhỏ gọn ngay phía trên ô chat
-    image = Image.open(uploaded_file)
-    st.image(image, caption="📷 Ảnh bài tập bạn vừa tải lên", width=300)
+image_bytes_data = None
+if paste_result.image_data is not None:
+    # Hiển thị ảnh vừa được dán lên màn hình để kiểm tra trước khi gửi
+    st.image(paste_result.image_data, caption="📷 Ảnh bài tập bạn vừa dán thành công", width=300)
+    
+    # Chuyển đổi dữ liệu ảnh sang dạng bytes để gửi lên API
+    img_byte_arr = io.BytesIO()
+    paste_result.image_data.save(img_byte_arr, format='PNG')
+    image_bytes_data = img_byte_arr.getvalue()
 
 # --- 5. Ô NHẬP LIỆU DƯỚI CÙNG ---
 if user_query := st.chat_input("Hỏi bất cứ điều gì cho Hội đồng 10 AI tại đây..."):
     
-    # Chuẩn bị nội dung câu hỏi đầy đủ
     full_user_prompt = user_query
     extracted_image_text = ""
     
-    # Nếu người dùng có đính kèm ghép ảnh, kích hoạt quét ảnh ngầm trước
-    if uploaded_file is not None:
-        with st.spinner("🔍 Agent Thị Giác đang quét dữ liệu từ hình ảnh của bạn..."):
-            img_bytes = uploaded_file.read()
-            extracted_image_text = call_vision_agent(img_bytes)
+    # Nếu có ảnh dán, kích hoạt Agent Thị Giác quét nội dung ngầm
+    if image_bytes_data is not None:
+        with st.spinner("🔍 Agent Thị Giác đang quét dữ liệu từ hình ảnh bạn dán..."):
+            extracted_image_text = call_vision_agent(image_bytes_data)
             full_user_prompt = f"[Nội dung từ hình ảnh bài tập]:\n{extracted_image_text}\n\n[Lời nhắn của học sinh]: {user_query}"
 
     with st.chat_message("user"):
-        st.write(user_query if uploaded_file is None else f"📷 [Gửi kèm 1 ảnh bài tập] - {user_query}")
+        st.write(user_query if image_bytes_data is None else f"📷 [Gửi kèm ảnh đã dán] - {user_query}")
         
     if not GROQ_API_KEY:
         st.error("Hệ thống chưa được cấu hình API Key.")
@@ -214,6 +221,3 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì cho Hội đồng 1
 
             # --- 5. CHỈ HIỂN THỊ ĐÚNG 1 CÂU TRẢ LỜI DUY NHẤT ---
             st.markdown(ket_qua_sach)
-            
-            # Lưu vào bộ nhớ lịch sử cuộc trò chuyện
-            st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
