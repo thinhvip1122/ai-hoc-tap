@@ -5,16 +5,16 @@ from groq import Groq
 # 1. Cấu hình giao diện ứng dụng Web dạng Chat chuyên nghiệp
 st.set_page_config(page_title="AI Học Tập Siêu Tốc Pro", layout="wide", page_icon="🎓")
 st.title("🎓 AI HỖ TRỢ HỌC TẬP - MULTI-AGENT CHAT")
-st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu trả lời và lưu trữ lịch sử dạng khung chat.")
+st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu trả lời và ghi nhớ hội thoại.")
 
 # Khởi tạo bộ nhớ lịch sử cuộc trò chuyện nếu chưa có
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI ở thanh bên (Sidebar)
+# 2. Cấu hình mô hình AI ở thanh bên (Đã cập nhật sang Gemini thế hệ mới)
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI:", 
-    ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+    ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
 )
 
 # Lấy API Key an toàn từ mục Secrets của Streamlit
@@ -48,7 +48,7 @@ def call_groq_agent(system_prompt, user_query, agent_id):
                 {"role": "user", "content": str(user_query)}
             ],
             model=MODEL_NAME,
-            temperature=0.1
+            temperature=0.2
         )
         res_text = chat_completion.choices[0].message.content
         return {"id": agent_id, "content": str(res_text)}
@@ -88,8 +88,7 @@ def fix_latex_format(text):
     text = text.replace(r"\(", "$").replace(r"\)", "$")
     return text
 
-# --- 3. HIỂN THỊ KHUNG CHAT TOÀN BỘ LỊCH SỬ (Giống giao diện Messenger/ChatGPT) ---
-# Đoạn này sẽ vẽ lại toàn bộ các tin nhắn cũ dưới dạng bong bóng chat ngay khi tải trang
+# --- 3. HIỂN THỊ KHUNG CHAT TOÀN BỘ LỊCH SỬ ---
 for chat in st.session_state.chat_history:
     with st.chat_message("user"):
         st.write(chat["user"])
@@ -97,25 +96,24 @@ for chat in st.session_state.chat_history:
         st.markdown(fix_latex_format(chat["bot"]))
 
 # --- 4. Ô NHẬP LIỆU DƯỚI CÙNG (st.chat_input) ---
-# st.chat_input sẽ tạo ra một ô chat dính chặt ở đáy màn hình y hệt các ứng dụng nhắn tin
 if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắn của bạn tại đây..."):
     
-    # 1. Hiển thị ngay câu hỏi của bạn lên màn hình dưới dạng bong bóng chat user
     with st.chat_message("user"):
         st.write(user_query)
         
     if not GROQ_API_KEY:
         st.error("Hệ thống chưa nhận được API Key. Vui lòng kiểm tra lại cấu hình Advanced settings.")
     else:
-        # 2. Tạo hiệu ứng ba dấu chấm chạy / Loading giả lập lúc AI suy nghĩ
         with st.chat_message("assistant"):
             with st.spinner("🚀 AI Trọng Tài đang tổng hợp câu trả lời..."):
                 
-                # Khai báo Prompt cho 3 AI chạy song song để mổ xẻ câu hỏi hiện tại
+                # Bổ sung chỉ thị hiểu từ viết tắt tiếng Việt vào Prompt hệ thống
+                fix_slang_prompt = " Bạn cần hiểu rõ các từ viết tắt, từ lóng của học sinh Việt Nam (ví dụ: 'j' là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi')."
+                
                 prompts = {
-                    "AI_1": "Bạn là một học giả uyên bác. Hãy trả lời câu hỏi học tập của người dùng một cách chính xác tuyệt đối, khoa học và ngắn gọn.",
-                    "AI_2": "Bạn là một gia sư giảng dạy. Hãy phân tích đề bài, đưa ra đáp án đúng kèm theo các bước giải thích cốt lõi, dễ hiểu nhất. Không nói lời thừa.",
-                    "AI_3": "Bạn là một chuyên gia thẩm định kiến thức học thuật. Hãy trả lời câu hỏi của người dùng một cách chính xác nhất dưới góc nhìn khoa học thực nghiệm, ngắn gọn và không có lời thừa."
+                    "AI_1": "Bạn là một học giả uyên bác. Hãy trả lời câu hỏi học tập của người dùng một cách chính xác tuyệt đối, khoa học và ngắn gọn." + fix_slang_prompt,
+                    "AI_2": "Bạn là một gia sư giảng dạy. Hãy phân tích đề bài, đưa ra đáp án đúng kèm theo các bước giải thích cốt lõi, dễ hiểu nhất. Không nói lời thừa." + fix_slang_prompt,
+                    "AI_3": "Bạn là một chuyên gia thẩm định kiến thức học thuật. Hãy trả lời câu hỏi của người dùng một cách chính xác nhất dưới góc nhìn khoa học thực nghiệm, ngắn gọn và không có lời thừa." + fix_slang_prompt
                 }
                 
                 raw_results = {}
@@ -144,14 +142,11 @@ if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắ
                 2. Trả lời trực tiếp vào câu hỏi người dùng đang trò chuyện, liên kết logic chặt chẽ với các câu hỏi trước đó trong lịch sử trò chuyện nếu có.
                 3. Trình bày bài học khoa học bằng Markdown (tiêu đề bôi đậm, danh sách gạch đầu dòng).
                 4. Toàn bộ công thức Toán học, phương trình Lý/Hóa PHẢI ĐƯỢC BỌC TRONG dấu $ (nếu viết cùng dòng) hoặc dấu $$ (nếu viết xuống dòng riêng).
-                """
+                """ + fix_slang_prompt
                 
                 # Gọi Trọng Tài và truyền kèm lịch sử hội thoại
                 ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_gom, st.session_state.chat_history)
                 ket_qua_sach = fix_latex_format(ket_qua_cuoi)
                 
-                # Hiển thị câu trả lời dạng bong bóng chat ngay lập tức
                 st.markdown(ket_qua_sach)
-                
-                # Lưu lượt hội thoại mới này vào bộ nhớ hệ thống st.session_state
                 st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
