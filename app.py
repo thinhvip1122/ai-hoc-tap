@@ -11,10 +11,10 @@ st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu tr�
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI ở thanh bên (Đã cập nhật sang Gemini thế hệ mới)
+# 2. Cấu hình mô hình AI ở thanh bên (Đã sửa danh sách Model ID chuẩn của Groq)
 MODEL_NAME = st.sidebar.selectbox(
     "Chọn mô hình AI:", 
-    ["google/gemini-2.5-pro", "google/gemini-2.5-flash"]
+    ["llama3-70b-8192", "mixtral-8x7b-32768", "llama3-8b-8192"]
 )
 
 # Lấy API Key an toàn từ mục Secrets của Streamlit
@@ -107,8 +107,8 @@ if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắ
         with st.chat_message("assistant"):
             with st.spinner("🚀 AI Trọng Tài đang tổng hợp câu trả lời..."):
                 
-                # Bổ sung chỉ thị hiểu từ viết tắt tiếng Việt vào Prompt hệ thống
-                fix_slang_prompt = " Bạn cần hiểu rõ các từ viết tắt, từ lóng của học sinh Việt Nam (ví dụ: 'j' là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi')."
+                # Ép chỉ thị hiểu từ viết tắt tiếng Việt rất chặt chẽ vào cấu trúc prompt hệ thống
+                fix_slang_prompt = " LƯU Ý BẮT BUỘC: Bạn phải hiểu các từ viết tắt, teencode thông dụng của học sinh Việt Nam. Ví dụ: 'j' hoặc 'gjm' nghĩa là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi', 'môn j' nghĩa là 'môn gì'. Hãy dịch câu chữ viết tắt của họ sang nghĩa đúng trước khi xử lý toán học hoặc lý luận học thuật."
                 
                 prompts = {
                     "AI_1": "Bạn là một học giả uyên bác. Hãy trả lời câu hỏi học tập của người dùng một cách chính xác tuyệt đối, khoa học và ngắn gọn." + fix_slang_prompt,
@@ -138,7 +138,7 @@ if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắ
                 Bạn là một Giảng viên đại học ưu tú. Nhiệm vụ của bạn là dựa vào lịch sử trò chuyện và dữ liệu gợi ý từ 3 bài giải ở phần USER để tạo ra câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ PHÙ HỢP NGỮ CẢNH NHẤT cho học sinh.
                 
                 Hãy tuân thủ nghiêm ngặt các quy tắc sau:
-                1. Tuyệt đối không viết lời nhận xét, đối chiếu hay so sánh kiểu "Đáp án 1 nói thế này...". Trả lời thẳng vào vấn đề.
+                1. Tuyệt đối không viết lời nhận xét, đối chiếu hay so sánh kiểu `[Gợi ý giải 1] nói thế này...`. Trả lời thẳng vào vấn đề kiến thức.
                 2. Trả lời trực tiếp vào câu hỏi người dùng đang trò chuyện, liên kết logic chặt chẽ với các câu hỏi trước đó trong lịch sử trò chuyện nếu có.
                 3. Trình bày bài học khoa học bằng Markdown (tiêu đề bôi đậm, danh sách gạch đầu dòng).
                 4. Toàn bộ công thức Toán học, phương trình Lý/Hóa PHẢI ĐƯỢC BỌC TRONG dấu $ (nếu viết cùng dòng) hoặc dấu $$ (nếu viết xuống dòng riêng).
