@@ -3,7 +3,6 @@ import streamlit as st
 from groq import Groq
 from PIL import Image
 import io
-import base64
 
 # 1. Cấu hình giao diện ứng dụng Web nâng cao
 st.set_page_config(page_title="AI Học Tập Đa Phương Thức Siêu Tốc", layout="wide", page_icon="🎓")
@@ -54,7 +53,7 @@ def call_groq_agent(system_prompt, user_query, agent_id):
             model=MODEL_NAME,
             temperature=0.0
         )
-        res_text = chat_completion.choices.message.content
+        res_text = chat_completion.choices[0].message.content
         return {"id": agent_id, "content": str(res_text)}
     except Exception as e:
         return {"id": agent_id, "content": f"Lỗi từ Agent này: {e}"}
@@ -74,7 +73,7 @@ def call_vision_agent(image_bytes):
             model="qwen/qwen3.6-27b",
             temperature=0.0
         )
-        return chat_completion.choices.message.content
+        return chat_completion.choices[0].message.content
     except Exception as e:
         return f"[Lỗi giải mã hình ảnh]: {e}"
 
@@ -96,7 +95,7 @@ def call_referee_with_history(system_prompt, current_data, history):
             model=MODEL_NAME,
             temperature=0.1
         )
-        return chat_completion.choices.message.content
+        return chat_completion.choices[0].message.content
     except Exception as e:
         return f"Lỗi kết nối hệ thống: {e}"
 
@@ -116,7 +115,6 @@ for chat in st.session_state.chat_history:
         st.markdown(fix_latex_format(chat["bot"]))
 
 # --- 4. CƠ CHẾ NHÚNG JAVASCRIPT HACK ĐỂ BẮT SỰ KIỆN CTRL + V TRỰC TIẾP ---
-# Đoạn mã mã hóa JS lắng nghe clipboard diện rộng và đẩy ảnh ngược lại Streamlit qua cấu trúc file uploader ẩn
 st.components.v1.html(
     """
     <script>
@@ -141,13 +139,11 @@ st.components.v1.html(
     height=0,
 )
 
-# Nhận diện dữ liệu ảnh dạng Base64 từ đoạn mã JavaScript đẩy lên
-# Để đơn giản và tương thích tối đa, chúng ta giữ một vùng phụ trợ nhận diện ảnh tải lên ngay trên thanh chat input
+# Khu vực hỗ trợ nhận diện ảnh dán từ Clipboard hoặc kéo thả thủ công
 uploaded_file = st.file_uploader("📷 Để gửi ảnh, bạn có thể dán (Ctrl+V) hoặc kéo thả trực tiếp file vào đây:", type=["png", "jpg", "jpeg"])
 
 if uploaded_file is not None:
     st.session_state.pasted_image_bytes = uploaded_file.read()
-    # Hiển thị ảnh xem trước nhỏ gọn dạng thumbnail bo tròn góc như giao diện chat đích thực
     st.image(st.session_state.pasted_image_bytes, caption="📷 Ảnh đính kèm trong hàng đợi gửi...", width=150)
 
 # --- 5. Ô NHẬP LIỆU DƯỚI CÙNG ---
@@ -155,7 +151,7 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
     
     full_user_prompt = user_query
     
-    # Nếu trong bộ nhớ tạm có lưu bytes hình ảnh vừa được dán/tải lên
+    # Nếu trong bộ nhớ tạm có lưu bytes hình ảnh
     if st.session_state.pasted_image_bytes is not None:
         with st.spinner("🔍 Agent Thị Giác đang đọc quét nội dung bức ảnh bạn gửi..."):
             extracted_image_text = call_vision_agent(st.session_state.pasted_image_bytes)
@@ -212,7 +208,8 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
             }
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                futures = [executor.submit(call_groq_agent, prompt, ban_thao_vong1, key) for key, prompt in vong2_config.items()}
+                # ĐÃ SỬA: Đóng ngoặc ] chính xác cho cú pháp Python dưới đây
+                futures = [executor.submit(call_groq_agent, prompt, ban_thao_vong1, key) for key, prompt in vong2_config.items()]
                 for future in concurrent.futures.as_completed(futures):
                     res = future.result()
                     raw_results[res["id"]] = res["content"]
@@ -226,3 +223,6 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
                 data_toan_bo_hoi_dong += f"[Dữ liệu {i}]:\n{raw_results.get(f'Agent_{i}')}\n\n"
 
             prompt_trong_tai = """
+            Bạn là Giảng viên Đại học Ưu tú. Nhiệm vụ của bạn là dựa vào báo cáo thống nhất ngầm từ 10 AI cấp dưới ở phần USER để viết ra MỘT câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ CHÍNH XÁC NHẤT.
+            
+            Quy tắc nghiêm ngặt:
