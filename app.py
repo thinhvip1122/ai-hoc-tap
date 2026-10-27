@@ -7,32 +7,40 @@ st.set_page_config(page_title="AI Học Tập Siêu Tốc Pro", layout="wide", p
 st.title("🎓 AI HỖ TRỢ HỌC TẬP - MULTI-AGENT PRO")
 st.write("Hệ thống song song 3 Agent kiểm tra chéo, xử lý siêu tốc và chống lan man.")
 
-# 2. Cấu hình API Key (Khuyến khích dùng st.secrets khi deploy)
-# Bạn có thể nhập key vào ô bên dưới hoặc cấu hình trong file .toml
-GROQ_API_KEY = st.sidebar.text_input("Nhập Groq API Key của bạn:", value="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", type="password")
-MODEL_NAME = st.sidebar.selectbox("Chọn mô hình AI:", ["llama-3.3-70b-specdec", "llama-3.1-8b-instant", "mixtral-8x7b-32768"])
+# 2. Cấu hình mô hình AI
+MODEL_NAME = st.sidebar.selectbox(
+    "Chọn mô hình AI:", 
+    ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+)
 
-# Khởi tạo client an toàn
+# Lấy API Key an toàn từ mục Secrets của Streamlit
+if "GROQ_API_KEY" in st.secrets:
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+else:
+    # Nếu chưa cấu hình Secrets, cho phép nhập tạm ở thanh bên
+    GROQ_API_KEY = st.sidebar.text_input("Nhập Groq API Key của bạn:", type="password")
+
+# Khởi tạo cổng kết nối Groq Client
 if GROQ_API_KEY:
     try:
         client = Groq(api_key=GROQ_API_KEY)
     except Exception as e:
         st.error(f"Lỗi khởi tạo cổng Groq: {e}")
 else:
-    st.warning("Vui lòng nhập Groq API Key ở thanh bên để bắt đầu!")
+    st.warning("Vui lòng cấu hình GROQ_API_KEY trong mục Advanced settings -> Secrets để chạy ứng dụng!")
 
 # Hàm gọi một khối AI độc lập
 def call_groq_agent(system_prompt, user_query, agent_id):
     if not GROQ_API_KEY:
-        return "Chưa cấu hình API Key."
+        return {"id": agent_id, "content": "Chưa cấu hình API Key."}
     try:
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": str(system_prompt)},
                 {"role": "user", "content": str(user_query)}
             ],
-            model=MODEL_NAME, # Đã sửa sang model chuẩn của Groq
-            temperature=0.1 # Giữ nguyên độ chính xác cao
+            model=MODEL_NAME,
+            temperature=0.1
         )
         res_text = chat_completion.choices[0].message.content
         return {"id": agent_id, "content": str(res_text)}
@@ -43,7 +51,6 @@ def call_groq_agent(system_prompt, user_query, agent_id):
 def fix_latex_format(text):
     if not text:
         return ""
-    # Xử lý chuẩn hóa các ký hiệu toán học phổ biến từ markdown sang KaTeX của Streamlit
     text = text.replace(r"\[", "$$").replace(r"\]", "$$")
     text = text.replace(r"\(", "$").replace(r"\)", "$")
     return text
@@ -53,11 +60,11 @@ user_query = st.text_area("Nhập câu hỏi học tập hoặc đề bài vào 
 
 if st.button("Thực thi phân tích siêu tốc", type="primary"):
     if not GROQ_API_KEY:
-        st.error("Bạn không thể thực thi khi chưa điền API Key!")
+        st.error("Hệ thống chưa nhận được API Key. Vui lòng kiểm tra lại cấu hình Advanced settings.")
     elif not user_query.strip():
         st.warning("Vui lòng nhập câu hỏi trước khi chạy!")
     else:
-        with st.spinner("🚀 3 AI đang phản tích song song và tổng hợp dữ liệu..."):
+        with st.spinner("🚀 3 AI đang phân tích song song và tổng hợp dữ liệu..."):
             
             # Khai báo Prompt cho 3 AI chạy song song
             prompts = {
@@ -66,12 +73,10 @@ if st.button("Thực thi phân tích siêu tốc", type="primary"):
                 "AI_3": "Bạn là một chuyên gia thẩm định kiến thức học thuật. Hãy trả lời câu hỏi của người dùng một cách chính xác nhất dưới góc nhìn khoa học thực nghiệm, ngắn gọn và không có lời thừa."
             }
             
-            # Sử dụng Dict để lưu kết quả cố định theo key, tránh lỗi tráo đổi vị trí do chạy đa luồng
             raw_results = {}
             
-            # Chạy đa luồng song song thực sự
+            # Chạy đa luồng song song thực sự bằng ThreadPoolExecutor
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                # Truyền thêm tham số ID để định danh chính xác kết quả trả về
                 futures = [executor.submit(call_groq_agent, prompt, user_query, key) for key, prompt in prompts.items()]
                 for future in concurrent.futures.as_completed(futures):
                     res = future.result()
@@ -95,7 +100,6 @@ if st.button("Thực thi phân tích siêu tốc", type="primary"):
             4. QUY ĐỊNH BẮT BUỘC VỀ CÔNG THỨC: Toàn bộ công thức Toán học, phương trình Lý/Hóa PHẢI ĐƯỢC BỌC TRONG dấu $ (nếu viết cùng dòng) hoặc dấu $$ (nếu viết xuống dòng riêng). Tuyệt đối không dùng ký hiệu khác như \\[ hay \\(.
             """
             
-            # Gọi Trọng Tài tổng hợp kết quả cuối
             res_trong_tai = call_groq_agent(prompt_trong_tai, data_gom, "TrongTai")
             ket_qua_cuoi = res_trong_tai["content"]
             
