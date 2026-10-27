@@ -2,45 +2,43 @@ import concurrent.futures
 import streamlit as st
 from groq import Groq
 
-# 1. Cấu hình giao diện ứng dụng Web dạng Chat chuyên nghiệp
-st.set_page_config(page_title="AI Học Tập Siêu Tốc Pro", layout="wide", page_icon="🎓")
-st.title("🎓 AI HỖ TRỢ HỌC TẬP - MULTI-AGENT CHAT")
-st.write("Hệ thống song song 3 Agent kiểm tra chéo, tổng hợp câu trả lời và ghi nhớ hội thoại.")
+# 1. Cấu hình giao diện ứng dụng Web nâng cao
+st.set_page_config(page_title="Hội Đồng AI Học Tập Tối Cao", layout="wide", page_icon="🏛️")
+st.title("🏛️ HỘI ĐỒNG AI HỌC TẬP - 10 AGENT SONG SONG")
+st.write("Hệ thống kết hợp sức mạnh lý luận của 10 AI Agent chuyên biệt giúp kiểm tra chéo và chống ảo giác tuyệt đối.")
 
-# Khởi tạo bộ nhớ lịch sử cuộc trò chuyện nếu chưa có
+# Khởi tạo bộ nhớ lịch sử cuộc trò chuyện
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 2. Cấu hình mô hình AI ở thanh bên (Danh sách Model ID chuẩn nhất hiện nay của Groq)
+# 2. Cấu hình mô hình AI hiệu năng cao nhất hiện tại của Groq
 MODEL_NAME = st.sidebar.selectbox(
-    "Chọn mô hình AI:", 
+    "Chọn mô hình AI nền tảng:", 
     ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 )
 
-# Lấy API Key an toàn từ mục Secrets của Streamlit
+# Quản lý API Key bảo mật
 if "GROQ_API_KEY" in st.secrets:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 else:
     GROQ_API_KEY = st.sidebar.text_input("Nhập Groq API Key của bạn:", type="password")
 
-# Khởi tạo cổng kết nối Groq Client
 if GROQ_API_KEY:
     try:
         client = Groq(api_key=GROQ_API_KEY)
     except Exception as e:
         st.sidebar.error(f"Lỗi khởi tạo cổng Groq: {e}")
 else:
-    st.sidebar.warning("Vui lòng cấu hình GROQ_API_KEY trong Secrets hoặc nhập ở đây.")
+    st.sidebar.warning("Vui lòng cấu hình GROQ_API_KEY để hệ thống hoạt động.")
 
-# Nút bấm để xóa bộ nhớ cuộc trò chuyện làm lại từ đầu
-if st.sidebar.button("🗑️ Xóa lịch sử hội thoại"):
+if st.sidebar.button("🗑️ Làm mới cuộc trò chuyện"):
     st.session_state.chat_history = []
     st.rerun()
 
-# Hàm gọi một khối AI độc lập (Phân tích câu hỏi mới)
+# Hàm gọi một khối AI độc lập
 def call_groq_agent(system_prompt, user_query, agent_id):
     if not GROQ_API_KEY:
-        return {"id": agent_id, "content": "Chưa cấu hình API Key."}
+        return {"id": agent_id, "content": "Chưa có API Key."}
     try:
         chat_completion = client.chat.completions.create(
             messages=[
@@ -48,27 +46,24 @@ def call_groq_agent(system_prompt, user_query, agent_id):
                 {"role": "user", "content": str(user_query)}
             ],
             model=MODEL_NAME,
-            temperature=0.2
+            temperature=0.15  # Giữ độ chính xác học thuật cao
         )
         res_text = chat_completion.choices[0].message.content
         return {"id": agent_id, "content": str(res_text)}
     except Exception as e:
-        return {"id": agent_id, "content": f"Lỗi từ AI {agent_id}: {e}"}
+        return {"id": agent_id, "content": f"Lỗi từ Agent này: {e}"}
 
-# Hàm gọi AI Trọng Tài có kèm theo toàn bộ lịch sử cuộc trò chuyện
+# Hàm gọi AI Trọng Tài Tổng Hợp Hội Đồng
 def call_referee_with_history(system_prompt, current_data, history):
     if not GROQ_API_KEY:
-        return "Chưa cấu hình API Key."
+        return "Chưa có API Key."
     
     messages = [{"role": "system", "content": str(system_prompt)}]
-    
-    # Thêm các câu hội thoại cũ theo đúng chuẩn giao tiếp chat lịch sử
     for chat in history:
         messages.append({"role": "user", "content": chat["user"]})
         messages.append({"role": "assistant", "content": chat["bot"]})
     
-    # Đưa câu hỏi và dữ liệu phân tích song song hiện tại vào cuối cùng
-    messages.append({"role": "user", "content": f"Câu hỏi mới và dữ liệu gợi ý phân tích:\n{current_data}"})
+    messages.append({"role": "user", "content": f"Báo cáo tổng hợp từ hội đồng 10 AI:\n{current_data}"})
     
     try:
         chat_completion = client.chat.completions.create(
@@ -78,9 +73,9 @@ def call_referee_with_history(system_prompt, current_data, history):
         )
         return chat_completion.choices[0].message.content
     except Exception as e:
-        return f"Lỗi kết nối từ Trọng Tài: {e}"
+        return f"Lỗi từ Trọng tài Tổng hợp: {e}"
 
-# Hàm chuẩn hóa công thức hiển thị
+# Khử nhiễu cấu trúc Markdown KaTeX toán học
 def fix_latex_format(text):
     if not text:
         return ""
@@ -88,65 +83,97 @@ def fix_latex_format(text):
     text = text.replace(r"\(", "$").replace(r"\)", "$")
     return text
 
-# --- 3. HIỂN THỊ KHUNG CHAT TOÀN BỘ LỊCH SỬ ---
+# --- 3. HIỂN THỊ LỊCH SỬ KHUNG CHAT MƯỢT MÀ ---
 for chat in st.session_state.chat_history:
     with st.chat_message("user"):
         st.write(chat["user"])
     with st.chat_message("assistant"):
         st.markdown(fix_latex_format(chat["bot"]))
 
-# --- 4. Ô NHẬP LIỆU DƯỚI CÙNG (st.chat_input) ---
-if user_query := st.chat_input("Nhập câu hỏi học tập hoặc lời nhắn của bạn tại đây..."):
+# --- 4. XỬ LÝ ĐA LUỒNG 10 AI AGENT SONG SONG ---
+if user_query := st.chat_input("Gửi câu hỏi hoặc đề bài cho Hội đồng 10 AI tại đây..."):
     
     with st.chat_message("user"):
         st.write(user_query)
         
     if not GROQ_API_KEY:
-        st.error("Hệ thống chưa nhận được API Key. Vui lòng kiểm tra lại cấu hình Advanced settings.")
+        st.error("Hệ thống chưa được cấu hình API Key.")
     else:
         with st.chat_message("assistant"):
-            with st.spinner("🚀 AI Trọng Tài đang tổng hợp câu trả lời..."):
-                
-                # Ép chỉ thị hiểu từ viết tắt tiếng Việt rất chặt chẽ vào cấu trúc prompt hệ thống
-                fix_slang_prompt = " LƯU Ý BẮT BUỘC: Bạn phải hiểu các từ viết tắt, teencode thông dụng của học sinh Việt Nam. Ví dụ: 'j' nghĩa là 'gì', 'ko' là 'không', 'dc' là 'được', 'tui' là 'tôi', 'môn j' nghĩa là 'môn gì'. Hãy dịch câu chữ viết tắt của họ sang nghĩa đúng trước khi lý luận học thuật."
-                
-                prompts = {
-                    "AI_1": "Bạn là một học giả uyên bác. Hãy trả lời câu hỏi học tập của người dùng một cách chính xác tuyệt đối, khoa học và ngắn gọn." + fix_slang_prompt,
-                    "AI_2": "Bạn là một gia sư giảng dạy. Hãy phân tích đề bài, đưa ra đáp án đúng kèm theo các bước giải thích cốt lõi, dễ hiểu nhất. Không nói lời thừa." + fix_slang_prompt,
-                    "AI_3": "Bạn là một chuyên gia thẩm định kiến thức học thuật. Hãy trả lời câu hỏi của người dùng một cách chính xác nhất dưới góc nhìn khoa học thực nghiệm, ngắn gọn và không có lời thừa." + fix_slang_prompt
-                }
-                
-                raw_results = {}
-                
-                # Chạy đa luồng song song xử lý câu hỏi hiện tại
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = [executor.submit(call_groq_agent, prompt, user_query, key) for key, prompt in prompts.items()]
-                    for future in concurrent.futures.as_completed(futures):
-                        res = future.result()
-                        raw_results[res["id"]] = res["content"]
-                
-                # Gom dữ liệu thô từ 3 Agent
-                data_gom = f"""
-                Câu hỏi hiện tại của người dùng: {user_query}
-                [Gợi ý giải 1]: {raw_results.get('AI_1', 'Lỗi')}
-                [Gợi ý giải 2]: {raw_results.get('AI_2', 'Lỗi')}
-                [Gợi ý giải 3]: {raw_results.get('AI_3', 'Lỗi')}
-                """
-                
-                # Khối AI Trọng Tài cuối cùng
-                prompt_trong_tai = """
-                Bạn là một Giảng viên đại học ưu tú. Nhiệm vụ của bạn là dựa vào lịch sử trò chuyện và dữ liệu gợi ý từ 3 bài giải ở phần USER để tạo ra câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ PHÙ HỢP NGỮ CẢNH NHẤT cho học sinh.
-                
-                Hãy tuân thủ nghiêm ngặt các quy tắc sau:
-                1. Tuyệt đối không viết lời nhận xét, đối chiếu hay so sánh kiểu `[Gợi ý giải 1] nói thế này...`. Trả lời thẳng vào vấn đề kiến thức.
-                2. Trả lời trực tiếp vào câu hỏi người dùng đang trò chuyện, liên kết logic chặt chẽ với các câu hỏi trước đó trong lịch sử trò chuyện nếu có.
-                3. Trình bày bài học khoa học bằng Markdown (tiêu đề bôi đậm, danh sách gạch đầu dòng).
-                4. Toàn bộ công thức Toán học, phương trình Lý/Hóa PHẢI ĐƯỢC BỌC TRONG dấu $ (nếu viết cùng dòng) hoặc dấu $$ (nếu viết xuống dòng riêng).
-                """ + fix_slang_prompt
-                
-                # Gọi Trọng Tài và truyền kèm lịch sử hội thoại
-                ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_gom, st.session_state.chat_history)
-                ket_qua_sach = fix_latex_format(ket_qua_cuoi)
-                
-                st.markdown(ket_qua_sach)
-                st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
+            # Sử dụng hiệu ứng tiến trình động trực quan
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            status_text.text("⚙️ Hội đồng 10 AI đang phân tích dữ liệu song song...")
+            progress_bar.progress(20)
+            
+            # Định nghĩa bộ chỉ thị từ viết tắt chung cho hội đồng
+            fix_slang_prompt = " Phải hiểu các từ viết tắt, teencode tiếng Việt (ko=không, j=gì, dc=được, tui=tôi, mn=mọi người, môn j=môn gì)."
+
+            # Định nghĩa vai trò chuyên biệt cho 10 AI Agent khác nhau
+            agents_config = {
+                "Agent_1": "Bạn là Học giả Uyên bác. Trả lời chính xác tuyệt đối, khoa học và ngắn gọn khái niệm cốt lõi." + fix_slang_prompt,
+                "Agent_2": "Bạn là Gia sư Sư phạm. Bẻ nhỏ bài toán thành các bước giải logic, dễ tiếp thu nhất." + fix_slang_prompt,
+                "Agent_3": "Bạn là Nhà Khoa học Thực nghiệm. Chỉ ra ứng dụng thực tiễn của kiến thức này trong đời sống." + fix_slang_prompt,
+                "Agent_4": "Bạn là Chuyên gia Toán học & Logic. Kiểm tra chặt chẽ tính chính xác của các công thức, hằng số, phương trình." + fix_slang_prompt,
+                "Agent_5": "Bạn là Chuyên gia Dịch thuật Ngôn ngữ. Giải mã chính xác câu hỏi lóng, teencode của người dùng sang ngôn ngữ học thuật chuẩn chỉnh." + fix_slang_prompt,
+                "Agent_6": "Bạn là Nhà Phê bình Biện chứng. Đóng vai trò phản biện, tìm ra các điểm dễ bẫy hoặc giả định sai lầm trong đề bài." + fix_slang_prompt,
+                "Agent_7": "Bạn là Biên tập viên Sách giáo khoa. Định hình câu trả lời theo chuẩn kiến thức sư phạm hiện hành." + fix_slang_prompt,
+                "Agent_8": "Bạn là Chuyên gia Tóm tắt Siêu tốc. Chắt lọc câu trả lời thành 3 dòng ghi nhớ (Takeaway) ngắn nhất." + fix_slang_prompt,
+                "Agent_9": "Bạn là Nhà Sáng tạo Minh họa. Thiết kế một ví dụ hoặc câu chuyện ẩn dụ thực tế sống động cho bài học." + fix_slang_prompt,
+                "Agent_10": "Bạn là Trợ lý Cấu trúc. Đưa ra dàn ý, sơ đồ tư duy dạng text (Mindmap) để người dùng dễ hệ thống." + fix_slang_prompt,
+            }
+            
+            raw_results = {}
+            progress_bar.progress(50)
+            
+            # Kích hoạt Pool xử lý đồng thời tối đa 10 luồng (max_workers=10)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(call_groq_agent, prompt, user_query, key) for key, prompt in agents_config.items()]
+                for future in concurrent.futures.as_completed(futures):
+                    res = future.result()
+                    raw_results[res["id"]] = res["content"]
+            
+            progress_bar.progress(80)
+            status_text.text("⚖️ Đang trình báo lên AI Trọng tài tổng hợp kết quả tối ưu...")
+            
+            # Cấu trúc văn bản báo cáo từ 10 phía
+            data_gom = f"Câu hỏi gốc: {user_query}\n"
+            for k in agents_config.keys():
+                data_gom += f"[{k}]: {raw_results.get(k, 'Lỗi kết nối.')}\n"
+            
+            # Khối prompt tối cao dành cho AI Trọng tài
+            prompt_trong_tai = """
+            Bạn là Giảng viên Đại học Ưu tú - Trọng tài tối cao của hội đồng học thuật.
+            Nhiệm vụ của bạn là kết hợp tất cả các góc nhìn tinh túy nhất từ 10 AI Agent cấp dưới (Định nghĩa từ Học giả, Các bước giải từ Gia sư, Ứng dụng từ Thực nghiệm, Phản biện từ Nhà biện chứng, Sơ đồ từ Trợ lý cấu trúc...) để tạo ra một câu trả lời hoàn hảo, toàn diện và sâu sắc nhất cho học sinh.
+            
+            Quy tắc nghiêm ngặt:
+            1. Trình bày bài học liền mạch bằng Markdown. Tuyệt đối không nhận xét kiểu "Agent 1 nói thế này, Agent 2 nói thế kia".
+            2. Trả lời bám sát câu hỏi người dùng, liên kết mạch lạc với ngữ cảnh lịch sử trò chuyện.
+            3. QUY ĐỊNH CÔNG THỨC: Bắt buộc bọc toán học/vật lý/hóa học bằng dấu $ (cùng dòng) hoặc $$ (xuống dòng).
+            """ + fix_slang_prompt
+            
+            ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_gom, st.session_state.chat_history)
+            ket_qua_sach = fix_latex_format(ket_qua_cuoi)
+            
+            # Xóa các thanh trạng thái sau khi hoàn thành để giao diện sạch sẽ
+            progress_bar.empty()
+            status_text.empty()
+            
+            # 5. Hiển thị kết quả ra màn hình bằng cấu trúc phân tầng
+            st.markdown(ket_qua_sach)
+            
+            # Tích hợp thêm hộp chứa (Expander) bí mật giúp bạn soi chi tiết góc nhìn của 10 Agent nếu muốn
+            with st.expander("🔬 Xem chi tiết báo cáo thô từ Hội đồng 10 AI Agent"):
+                tab_titles = [
+                    "1. Học giả", "2. Gia sư", "3. Thực nghiệm", "4. Toán học", "5. Ngôn ngữ", 
+                    "6. Phản biện", "7. Sách GK", "8. Tóm tắt", "9. Minh họa", "10. Sơ đồ"
+                ]
+                tabs = st.tabs(tab_titles)
+                for index, key in enumerate(agents_config.keys()):
+                    with tabs[index]:
+                        st.info(f"Góc nhìn chuyên sâu từ {tab_titles[index]}:")
+                        st.write(raw_results.get(key))
+            
+            # Ghi nhớ phiên làm việc vào lịch sử cuộc trò chuyện
+            st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
