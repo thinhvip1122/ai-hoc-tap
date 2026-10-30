@@ -3,6 +3,8 @@ import streamlit as st
 from groq import Groq
 from PIL import Image
 import io
+import docx2txt
+import PyPDF2
 
 # 1. Cấu hình giao diện ứng dụng Web nâng cao
 st.set_page_config(page_title="AI Học Tập Đa Phương Thức Siêu Tốc", layout="wide", page_icon="🎓")
@@ -139,24 +141,49 @@ st.html(
 )
 
 # Khu vực hỗ trợ kéo thả ảnh hoặc dán qua Clipboard tự động nhận diện
-uploaded_file = st.file_uploader("📷 Để gửi ảnh, bạn có thể dán (Ctrl+V) hoặc kéo thả trực tiếp file vào đây:", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("📷 Để gửi dữ liệu, bạn có thể dán ảnh (Ctrl+V) hoặc kéo thả trực tiếp file tài liệu (.png, .jpg, .docx, .pdf) vào đây:", type=["png", "jpg", "jpeg", "docx", "pdf"])
+
+extracted_file_text = ""
 
 if uploaded_file is not None:
-    st.session_state.pasted_image_bytes = uploaded_file.read()
-    st.image(st.session_state.pasted_image_bytes, caption="📷 Ảnh đính kèm trong hàng đợi gửi...", width=150)
+    if uploaded_file.name.endswith('.docx'):
+        try:
+            extracted_file_text = docx2txt.process(uploaded_file)
+            st.success(f"📄 Đã bóc tách văn bản từ file Word: {uploaded_file.name}")
+            st.session_state.pasted_image_bytes = None
+        except Exception as e:
+            st.error(f"Lỗi khi đọc file Word: {e}")
+    elif uploaded_file.name.endswith('.pdf'):
+        try:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    extracted_file_text += page_text + "\n"
+            st.success(f"📕 Đã bóc tách văn bản từ file PDF: {uploaded_file.name}")
+            st.session_state.pasted_image_bytes = None
+        except Exception as e:
+            st.error(f"Lỗi khi đọc file PDF: {e}")
+    else:
+        st.session_state.pasted_image_bytes = uploaded_file.read()
+        st.image(st.session_state.pasted_image_bytes, caption="📷 Ảnh đính kèm trong hàng đợi gửi...", width=150)
 
 # --- 5. Ô NHẬP LIỆU DƯỚI CÙNG ---
 if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đây, dán ảnh hoặc gõ chữ)"):
     
     full_user_prompt = user_query
     
-    if st.session_state.pasted_image_bytes is not None:
+    if extracted_file_text != "":
+        full_user_prompt = f"[Nội dung từ tài liệu {uploaded_file.name}]:\n{extracted_file_text}\n\n[Yêu cầu bổ sung của học sinh]: {user_query}"
+    elif st.session_state.pasted_image_bytes is not None:
         with st.spinner("🔍 Agent Thị Giác đang đọc quét nội dung bức ảnh bạn gửi..."):
             extracted_image_text = call_vision_agent(st.session_state.pasted_image_bytes)
             full_user_prompt = f"[Nội dung từ hình ảnh bài tập]:\n{extracted_image_text}\n\n[Lời nhắn của học sinh]: {user_query}"
 
     with st.chat_message("user"):
-        if st.session_state.pasted_image_bytes is not None:
+        if extracted_file_text != "":
+            st.write(f"📄 [Gửi kèm tài liệu: {uploaded_file.name}] — {user_query}")
+        elif st.session_state.pasted_image_bytes is not None:
             st.write(f"📷 [Gửi kèm 1 hình ảnh] — {user_query}")
         else:
             st.write(user_query)
@@ -196,16 +223,13 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
             for i in range(1, 6):
                 data_toan_bo_hoi_dong += f"[Dữ liệu Agent {i}]:\n{raw_results.get(f'Agent_{i}')}\n\n"
 
-            prompt_trong_tai = "Bạn là Giảng viên Đại học Ưu tú. Hãy dựa vào báo cáo song song từ các AI cấp dưới ở phần USER để viết ra MỘT câu trả lời HOÀN CHỈNH, ĐẦY ĐỦ VÀ CHÍNH XÁC NHẤT dưới dạng Markdown (tiêu đề bôi đậm, gạch đầu dòng). Không viết lời mở đầu thừa thãi. Bắt buộc bọc biểu thức toán/lý/hóa bằng dấu $ hoặc $$." + fix_slang_prompt
-
+            prompt_trong_tai = "Bạn là Giảng viên Đại học Ưu tú. Hãy dựa vào báo cáo song song từ các AI cấp dưới ở phần USER để viết ra MỘT câu trả lời HOÀN CHỈNH, chuẩn xác, đầy đủ và dễ hiểu nhất cho học sinh."
+            
             ket_qua_cuoi = call_referee_with_history(prompt_trong_tai, data_toan_bo_hoi_dong, st.session_state.chat_history)
             ket_qua_sach = fix_latex_format(ket_qua_cuoi)
-
+            
             progress_bar.empty()
             st_status.empty()
-
+            
             st.markdown(ket_qua_sach)
-
-            st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_sach})
-            st.session_state.pasted_image_bytes = None
-            st.rerun()
+            st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_cuoi})
