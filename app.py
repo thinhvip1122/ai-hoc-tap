@@ -27,7 +27,7 @@ MODEL_NAME = st.sidebar.selectbox(
 if "GROQ_API_KEY" in st.secrets:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 else:
-    GROQ_API_KEY = st.sidebar.text_input("Nhập Groq API Key của bạn:", type="password")
+    GROQ_API_KEY = st.sidebar.text_input("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", type="password")
 
 if GROQ_API_KEY:
     try:
