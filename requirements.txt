@@ -1,3 +1,5 @@
 streamlit
 groq
 Pillow
+import docx2txt
+import PyPDF2
