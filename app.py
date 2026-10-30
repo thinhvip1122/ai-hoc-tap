@@ -23,11 +23,8 @@ MODEL_NAME = st.sidebar.selectbox(
     ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b"]
 )
 
-# Quản lý API Key bảo mật
-if "GROQ_API_KEY" in st.secrets:
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-else:
-    GROQ_API_KEY = st.sidebar.text_input("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", type="password")
+# Quản lý API Key tự động bảo mật
+GROQ_API_KEY = "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"
 
 if GROQ_API_KEY:
     try:
@@ -233,3 +230,5 @@ if user_query := st.chat_input("Hỏi bất cứ điều gì... (Nhấp vào đ�
             
             st.markdown(ket_qua_sach)
             st.session_state.chat_history.append({"user": user_query, "bot": ket_qua_cuoi})
+            st.session_state.pasted_image_bytes = None
+            st.rerun()
